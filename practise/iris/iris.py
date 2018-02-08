@@ -1,47 +1,90 @@
-import numpy
+
+
+# Load libraries
+import pandas
+from pandas.tools.plotting import scatter_matrix
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from sklearn import datasets
-from sklearn.decomposition import PCA
+from sklearn import model_selection
+from sklearn.metrics import classification_report
+from sklearn.metrics import confusion_matrix
+from sklearn.metrics import accuracy_score
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+from sklearn.naive_bayes import GaussianNB
+from sklearn.svm import SVC
 
-# import some data to play with
-iris = numpy.loadtxt('iris.data', delimiter=',', usecols=range(0,5));
-X = iris[:, :2]  # we only take the first two features.
-y = iris[:,4]
+url = "https://archive.ics.uci.edu/ml/machine-learning-databases/iris/iris.data"
+names = ['sepal-length', 'sepal-width', 'petal-length', 'petal-width', 'class']
+dataset = pandas.read_csv('iris.data', names=names)
 
-print y;
+# # shape
+# print(dataset.shape)
+# # head
+# print(dataset.head(20))
+# # descriptions
+# print(dataset.describe())
+# # class distribution
+# print(dataset.groupby('class').size())
+
+# # box and whisker plots
+# dataset.plot(kind='box', subplots=True, layout=(2,2), sharex=False, sharey=False)
+# plt.show()
+
+# # histograms
+# dataset.hist()
+# plt.show()
+
+# scatter plot matrix
+# scatter_matrix(dataset)
+# plt.show()
+
+# Split-out validation dataset
+array = dataset.values
+X = array[:,0:4]
+Y = array[:,4]
+validation_size = 0.20
+seed = 7
+X_train, X_validation, Y_train, Y_validation = model_selection.train_test_split(X, Y, test_size=validation_size, random_state=seed)
+	
+# Test options and evaluation metric
+seed = 7
+scoring = 'accuracy'
+
+# Spot Check Algorithms
+models = []
+models.append(('LR', LogisticRegression()))
+models.append(('LDA', LinearDiscriminantAnalysis()))
+models.append(('KNN', KNeighborsClassifier()))
+models.append(('CART', DecisionTreeClassifier()))
+models.append(('NB', GaussianNB()))
+models.append(('SVM', SVC()))
+# evaluate each model in turn
+results = []
+names = []
+for name, model in models:
+	kfold = model_selection.KFold(n_splits=10, random_state=seed)
+	cv_results = model_selection.cross_val_score(model, X_train, Y_train, cv=kfold, scoring=scoring)
+	results.append(cv_results)
+	print (results);
+	names.append(name)
+	msg = "%s: %f (%f)" % (name, cv_results.mean(), cv_results.std())
+	print(msg)
 
 
-x_min, x_max = X[:, 0].min() - .5, X[:, 0].max() + .5
-y_min, y_max = X[:, 1].min() - .5, X[:, 1].max() + .5
 
-plt.figure(2, figsize=(8, 6))
-plt.clf()
-
-# Plot the training points
-plt.scatter(X[:, 0], X[:, 1], c=y, cmap=plt.cm.Set1,
-            edgecolor='0')
-plt.xlabel('Sepal length')
-plt.ylabel('Sepal width')
-
-plt.xlim(x_min, x_max)
-plt.ylim(y_min, y_max)
-plt.xticks(())
-plt.yticks(())
-
-# To getter a better understanding of interaction of the dimensions
-# plot the first three PCA dimensions
-fig = plt.figure(1, figsize=(8, 6))
-ax = Axes3D(fig, elev=-150, azim=110)
-X_reduced = PCA(n_components=3).fit_transform(iris)
-ax.scatter(X_reduced[:, 0], X_reduced[:, 1], X_reduced[:, 2], c=y,
-           cmap=plt.cm.Set1, edgecolor='k', s=40)
-ax.set_title("First three PCA directions")
-ax.set_xlabel("1st eigenvector")
-ax.w_xaxis.set_ticklabels([])
-ax.set_ylabel("2nd eigenvector")
-ax.w_yaxis.set_ticklabels([])
-ax.set_zlabel("3rd eigenvector")
-ax.w_zaxis.set_ticklabels([])
-
+# Compare Algorithms
+fig = plt.figure()
+fig.suptitle('Algorithm Comparison')
+ax = fig.add_subplot(111)
+plt.boxplot(results)
+ax.set_xticklabels(names)
 plt.show()
+
+knn = KNeighborsClassifier()
+knn.fit(X_train, Y_train)
+predictions = knn.predict(X_validation)
+print(accuracy_score(Y_validation, predictions))
+print(confusion_matrix(Y_validation, predictions))
+print(classification_report(Y_validation, predictions))
